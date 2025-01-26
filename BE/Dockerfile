@@ -7,13 +7,11 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
+
 RUN npm install
 
-# Copy TypeScript configuration
+# Copy TypeScript configuration and source code
 COPY tsconfig.json ./
-
-# Copy source code
 COPY src/ ./src/
 
 # Build TypeScript code
@@ -23,4 +21,4 @@ RUN npm run build
 EXPOSE 3000
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["npm", "run", "dev"]

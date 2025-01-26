@@ -1,0 +1,4 @@
+fireblocks_secret.key
+fireblocks.csr
+BE/src/fireblocks.ts
+BE/.env
