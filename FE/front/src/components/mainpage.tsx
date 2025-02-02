@@ -1,141 +1,108 @@
 import React, { useState } from 'react';
-import axios from 'axios';
+import { useMutation } from '@tanstack/react-query';
 import './mainpage.css';
-
-interface UTXOInput {
-  txHash: string;
-  index: number;
-}
-
-interface UTXO {
-  input: UTXOInput;
-  address: string;
-  amount: string;
-  confirmations: number;
-  status: string;
-}
-
-
-const shortenAddress = (address: string) => {
-    return `${address.substring(0, 8)}...${address.substring(address.length - 8)}`;
-  };
-
-const formatAmount = (amount: string) => {
-    const num = parseFloat(amount);
-    return num.toFixed(8);
-  };
+import { formatAmount,mapRelevantUTXO } from './helpfunctions';
+import { UTXO, UTXOParams } from './UTXO';
 
 const UTXODisplay: React.FC = () => {
   const [utxoData, setUtxoData] = useState<UTXO[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedUTXOs, setSelectedUTXOs] = useState<UTXO[]>([]);
+  const [vaultId, setVaultId] = useState('');
+  const [assetId, setAssetId] = useState('');
 
-  const fetchUTXOData = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await axios.post('http://localhost:3000/utxo');
-      setUtxoData(response.data);
-    } catch (err: any) {
-      setError(err?.response?.data?.error || 'Failed to fetch UTXO data');
-      console.error('Error:', err);
-    } finally {
-      setLoading(false);
+
+
+  const { mutate, isPending, isError, error } = useMutation({
+    mutationFn: async (params: UTXOParams) => {
+      const response = await fetch('http://localhost:3000/utxo', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          vaultId: params.vaultId,
+          assetId: params.assetId
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Could not connect to BE, Check if BE container is up');
+      }
+
+      const data = await response.json();
+      setUtxoData(data);
+      return data;
     }
+  });
+
+
+
+  const handleSelect = (index: number) => {
+    const selectedUtxo = utxoData[index];
+    setSelectedUTXOs(prev => [...prev, selectedUtxo]);
+    setUtxoData(prev => prev.filter((_, idx) => idx !== index));
   };
-
-
-  const handleSelect = (index:number) =>
-  {
-   const selectedUtxo = utxoData[index];
-   setSelectedUTXOs(prev=>[...prev,selectedUtxo]);
-   setUtxoData(prev => prev.filter((_, idx) => idx !== index));
-  }
 
   const handleReturn = (index: number) => {
     const returnedUtxo = selectedUTXOs[index];
-    setUtxoData(prev=>[...prev,returnedUtxo])
-    setSelectedUTXOs(prev=>prev.filter((_,idx)=>idx!==index))
-  };
+    setUtxoData(prev => [...prev, returnedUtxo]);
+    setSelectedUTXOs(prev => prev.filter((_, idx) => idx !== index));
+  }
 
-  const mappedUtxo = utxoData.map((utxo, idx) => (
-    <tr key={Date.now() + idx} className="table-row">
-      <td className="table-cell address-cell">
-        <span title={utxo.address}>
-          {shortenAddress(utxo.address)}
-          <button
-            className="consolidate-button"
-            onClick={() => handleSelect(idx)}
-          >    Select for Consolidation
-          </button>
-        </span>
-      </td>
-      <td className="table-cell">{utxo.input.txHash}</td>
-      <td className="table-cell">{utxo.input.index}</td>
-      <td className="table-cell">{formatAmount(utxo.amount)}</td>
-      <td className="table-cell">{utxo.confirmations.toLocaleString()}</td>
-      <td className="table-cell">
-        <span className={`status-badge ${
-          utxo.status === 'AVAILABLE' ? 'status-available' : 'status-pending'
-        }`}>
-          {utxo.status}
-        </span>
-      </td>
-    </tr>
-  ));
 
-  const selectedMappedUtxo = selectedUTXOs.map((utxo, idx) => (
-    <tr key={Date.now() + idx} className="table-row">
-      <td className="table-cell address-cell">
-        <span title={utxo.address}>
-          {shortenAddress(utxo.address)}
-          <button
-            className="consolidate-button"
-            onClick={() => handleReturn(idx)}
-          >
-            Return to Pool
-          </button>
-        </span>
-      </td>
-      <td className="table-cell">{utxo.input.txHash}</td>
-      <td className="table-cell">{utxo.input.index}</td>
-      <td className="table-cell">{formatAmount(utxo.amount)}</td>
-      <td className="table-cell">{utxo.confirmations.toLocaleString()}</td>
-      <td className="table-cell">
-        <span className={`status-badge ${
-          utxo.status === 'AVAILABLE' ? 'status-available' : 'status-pending'
-        }`}>
-          {utxo.status}
-        </span>
-      </td>
-    </tr>
-  ));
+const mappedUtxo = mapRelevantUTXO(utxoData, "Select for Consolidation", handleSelect);
+const selectedMappedUtxo = mapRelevantUTXO(selectedUTXOs, "Return to Pool", handleReturn, "selected");
 
 
   return (
     <div className="utxo-container">
+    <form
+      className="input-container mb-4 flex gap-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        mutate({ vaultId, assetId });
+      }}
+    >
+      <div className="input-group">
+        <label htmlFor="vaultId" className="block text-sm font-medium text-gray-700 mb-1">
+          VaultId
+        </label>
+        <input
+          type="text"
+          id="vaultId"
+          value={vaultId}
+          onChange={(e) => setVaultId(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+        />
+      </div>
+      <div className="input-group">
+        <label htmlFor="assetId" className="block text-sm font-medium text-gray-700 mb-1">
+          AssetId
+        </label>
+        <input
+          type="text"
+          id="assetId"
+          value={assetId}
+          onChange={(e) => setAssetId(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-md shadow-sm"
+        />
+      </div>
       <button
-        onClick={fetchUTXOData}
+        type="submit"
         className="fetch-button"
-        disabled={loading}
+        disabled={isPending}
       >
-        {loading ? 'Loading...' : 'Fetch UTXO Data'}
+        {isPending ? 'Loading' : 'Fetch UTXO'}
       </button>
+    </form>
 
-      {error && (
-        <div className="error-message">
-          {error}
-        </div>
-      )}
+    {isError && (
+      <div className="error-message">
+        Error: {error.message}
+      </div>
+    )}
 
-      {loading && (
-        <div className="loading-state loading-pulse">
-          Loading UTXO data...
-        </div>
-      )}
-
-    {utxoData.length > 0 && (
+      {utxoData.length > 0 && (
         <div className="utxo-card">
           <h2 className="card-title">Available UTXOs</h2>
           <div className="table-container">
@@ -145,7 +112,7 @@ const UTXODisplay: React.FC = () => {
                   <th>Address</th>
                   <th>Hash</th>
                   <th>Index</th>
-                  <th>Amount (BTC)</th>
+                  <th>Amount {assetId}</th>
                   <th>Confirmations</th>
                   <th>Status</th>
                 </tr>
@@ -158,7 +125,7 @@ const UTXODisplay: React.FC = () => {
         </div>
       )}
 
-{selectedUTXOs.length > 0 && (
+      {selectedUTXOs.length > 0 && (
         <div className="utxo-card mt-4">
           <h2 className="card-title">Selected for Consolidation</h2>
           <div className="summary-section">
@@ -171,7 +138,7 @@ const UTXODisplay: React.FC = () => {
               <div className="summary-item">
                 <p className="summary-label">Total Amount</p>
                 <p className="summary-value">
-                  {formatAmount(selectedUTXOs.reduce((sum, utxo) => sum + parseFloat(utxo.amount), 0).toString())} BTC
+                  {formatAmount(selectedUTXOs.reduce((sum, utxo) => sum + parseFloat(utxo.amount), 0).toString())}
                 </p>
               </div>
             </div>
@@ -199,7 +166,7 @@ const UTXODisplay: React.FC = () => {
         </div>
       )}
 
-      {!loading && utxoData.length === 0 && (
+      {!isPending && utxoData.length === 0 && (
         <div className="empty-state">
           No UTXO data available
         </div>

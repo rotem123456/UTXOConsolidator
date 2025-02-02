@@ -3,6 +3,7 @@ import cors from "cors";
 import { FireblocksSDK } from "fireblocks-sdk";
 import * as fs from "fs";
 import * as path from "path";
+import { apiKey } from "./apiKey";
 
 const app = express();
 const port = process.env.PORT || 3000;
@@ -12,7 +13,6 @@ const privateKey = fs.readFileSync(
 	path.join(__dirname, "../secrets/fireblocks_secret.key"),
 	"utf8"
 );
-const apiKey = "API KEY HERE";
 const baseUrl = "https://api.fireblocks.io";
 
 if (!apiKey) {
@@ -27,7 +27,11 @@ app.use(express.json());
 
 app.post("/utxo", async (req, res) => {
 	try {
-		const response = await fireblocks.getUnspentInputs("2", "BTC_TEST");
+		console.log(req.body);
+		const response = await fireblocks.getUnspentInputs(
+			req.body.vaultId,
+			req.body.assetId
+		);
 		res.json(response);
 	} catch (error) {
 		console.error("Error fetching UTXO:", error);
@@ -47,6 +51,10 @@ app.get("/utxo", async (req, res) => {
 			error: "Failed to fetch UTXO data",
 		});
 	}
+});
+
+app.get("/", async (req, res) => {
+	res.json("BE is running");
 });
 
 app.listen(port, () => {
