@@ -1,5 +1,5 @@
 import './App.css'
-import UTXODisplay from './components/mainpage'
+import UTXODisplay from './components/mainpage/mainpage'
 function App() {
 
   return (

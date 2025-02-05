@@ -48,8 +48,18 @@ app.get("/utxo", async (req, res) => {
 	} catch (error) {
 		console.error("Error fetching UTXO:", error);
 		res.status(500).json({
-			error: "Failed to fetch UTXO data",
+			error: "Failed to fetch UTXO data,Please check docker BE is running",
 		});
+	}
+});
+
+app.post("/createTransaction", async (req, res) => {
+	try {
+		console.log("Received UTXOs:", req.body.selectedMappedUtxo);
+		res.json({ success: true, message: "Transaction received" });
+	} catch (error) {
+		console.error("Error:", error);
+		res.status(500).json({ success: false, error });
 	}
 });
 

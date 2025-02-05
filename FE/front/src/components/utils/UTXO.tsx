@@ -1,4 +1,4 @@
-interface UTXOInput {
+export interface UTXOInput {
   txHash: string;
   index: number;
 }
